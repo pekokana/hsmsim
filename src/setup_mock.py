@@ -44,6 +44,24 @@ def setup():
         if platform.system() != "Windows":
             os.chmod(linux_keytool, 0o755)
 
+        # --- 3. 環境変数設定用スクリプトの自動生成 ---
+        # Windows用：実行するとそのコマンドプロンプト内のみPATHが通る
+        activate_bat = os.path.join(hsm.home, "activate_mock.bat")
+        with open(activate_bat, "w") as f:
+            f.write(f'@echo off\n')
+            f.write(f'set PATH={hsm.bin_dir};%PATH%\n')
+            f.write(f'echo [*] HSM Simulator PATH has been set for this session.\n')
+            f.write(f'echo [*] Mock bin: {hsm.bin_dir}\n')
+            f.write(f'where keytool\n')
+
+        # Linux/macOS用：source activate_mock.sh で実行
+        activate_sh = os.path.join(hsm.home, "activate_mock.sh")
+        with open(activate_sh, "w") as f:
+            f.write(f'#!/bin/bash\n')
+            f.write(f'export PATH="{hsm.bin_dir}:$PATH"\n')
+            f.write(f'echo "[*] HSM Simulator PATH has been set for this session."\n')
+            f.write(f'which keytool\n')
+
         print("-" * 50)
         print(f"[*] Success: Mock environment created at:")
         print(f"    {hsm.home}")
@@ -57,6 +75,13 @@ def setup():
         print("-" * 50)
         print(f"    :: Verify the setup")
         print(f"    where keytool")
+        print(f"[NEW] Activation script created!")
+        print(f"      Windows: {activate_bat}")
+        print(f"      Linux/macOS: {activate_sh}")
+        print("-" * 50)
+        print(f"To re-enable the mock environment later, just run:")
+        print(f"  > {activate_bat}")
+        print("-" * 50)
 
     except Exception as e:
         print(f"[!] Error: {e}")

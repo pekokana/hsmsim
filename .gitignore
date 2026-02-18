@@ -60,3 +60,5 @@ src/config.json
 *.ks
 *.csr
 *.jks
+*.html
+*.htm

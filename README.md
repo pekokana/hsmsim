@@ -8,32 +8,36 @@ HSMが存在しない環境（Windows開発環境やCI/CDパイプライン）�
 仮想ディレクトリの配置、シミュレートするHSMのホームパス、使用するJava Keytoolのパスなど、環境に合わせた柔軟なカスタマイズが可能です。
 
 ### 設定項目例 (`config.json`)
-- `nfast_home`: シミュレートされたHSMのルート（WindowsのDドライブやLinuxの任意ディレクトリ）。
-- `kmdata_local_subdir`: 秘密鍵メタデータが生成されるディレクトリ。
-- `java_keytool_path`: 本物のJava Keytoolの実行パス。
+
+* `nfast_home`: シミュレートされたHSMのルート（WindowsのDドライブやLinuxの任意ディレクトリ）。
+* `kmdata_local_subdir`: 秘密鍵メタデータが生成されるディレクトリ。
+* `java_keytool_path`: 本物のJava Keytoolの実行パス。
 
 ## 2. 開発の背景と目的
 
-- **CSR発行・証明書管理**: Java `keytool` を使用したHSMベースの鍵生成プロセスの擬似実行。
-- **運用保守ツールのテスト**: HSMステータス確認（`enquiry`）や鍵棚卸し（`nfkminfo`）を行うスクリプトのテスト
-- **クロスプラットフォーム開発**: Windowsで開発し、RHEL (Red Hat Enterprise Linux) で動作させるスクリプトの検証。
+* **CSR発行・証明書管理**: Java `keytool` を使用したHSMベースの鍵生成プロセスの擬似実行。
+* **運用保守ツールのテスト**: HSMステータス確認（`enquiry`）や鍵棚卸し（`nfkminfo`）を行うスクリプトのテスト。
+* **クロスプラットフォーム開発**: Windowsで開発し、RHEL (Red Hat Enterprise Linux) で動作させるスクリプトの検証。
 
 ## 3. 機能一覧
 
 ### 3.1 CLIコマンド・エミュレーション
+
 バッチファイル/シェルスクリプトのラッパーを通じて、以下の応答を返します。
-- `enquiry`: `mode operational` を返し、正常稼働を模倣。
-- `nfkminfo`: 指定した仮想ディレクトリ内の鍵ファイル（`key_jcec_*`）を走査して一覧表示。
-- `nethsmadmin`: 管理操作に対する正常終了応答。
+
+* `enquiry`: `mode operational` を返し、正常稼働を模倣。
+* `nfkminfo`: 指定した仮想ディレクトリ内の鍵ファイル（`key_jcec_*`）を走査して一覧表示。
+* `nethsmadmin`: 管理操作に対する正常終了応答。
 
 ### 3.2 Java Keytool 互換 (Wrapper)
-- `-storetype nCipher.sworld` を検知すると、内部的に `PKCS12` へ動的に書き換えて実行。
-- HSM専用プロパティ（`-Dprotect=module` 等）を無視し、標準Java環境での動作を維持。
-- **パスの自動誘導**: `-keystore` でファイル名のみ指定された場合、自動的に `config.json` で定義された仮想ディレクトリ（`kmdata/local`）へ保存先をリダイレクトします。
+
+* `-storetype nCipher.sworld` を検知すると、内部的に `PKCS12` へ動的に書き換えて実行。
+* HSM専用プロパティ（`-Dprotect=module` 等）を無視し、標準Java環境での動作を維持。
+* **パスの自動誘導**: `-keystore` でファイル名のみ指定された場合、自動的に `config.json` で定義された仮想ディレクトリ（`kmdata/local`）へ保存先をリダイレクトします。
 
 ## 4. 使い方 (Usage)
 
-### 5.1 環境構築（セットアップ）
+### 4.1 初回セットアップ
 
 1. `src/config.json` を開き、環境に合わせて `nfast_home` 等を編集します。
 2. セットアップスクリプトを実行します。
@@ -43,46 +47,67 @@ uv run src/setup_mock.py
 
 ```
 
-実行後、画面に表示される `set PATH=...` コマンドをコピーして実行してください。これにより、現在のターミナルウィンドウで本物のコマンドより優先してシミュレータが呼び出されるようになります。
+### 4.2 環境の有効化（VSCode再起動後など）
+
+VSCodeを閉じたり、新しいターミナルを開いたりした後は、PATHの設定がリセットされています。
+セットアップ時に生成されたスクリプトを実行して、モック環境を有効化してください。
+
+**Windows (コマンドプロンプト):**
 
 ```cmd
-:: 実行例 (Windows)
-set PATH=D:\hsm_simulation\mock_nfast\bin;%PATH%
-set NFAST_HOME=D:\hsm_simulation\mock_nfast
-
-:: 設定の確認
-where keytool
-# -> D:\hsm_simulation\mock_nfast\bin\keytool.bat が表示されれば成功
+# config.jsonで指定したnfast_home配下のアクティベートファイルを叩く
+D:\hsm_simulation\mock_nfast\activate_mock.bat
 
 ```
 
-### 5.2 動作確認：CSR発行シミュレーション
+**Linux / macOS:**
 
 ```bash
-keytool -genkeypair -alias my-hsm-key -keyalg RSA -keysize 2048 -storetype nCipher.sworld -keystore server.ks -dname "CN=Test Server, O=Example Org, C=JP"
+source /path/to/hsm_simulation/mock_nfast/activate_mock.sh
 
 ```
 
-**シミュレート結果:**
+実行後、`where keytool` でモック版（`...\bin\keytool.bat`）が優先されていれば成功です。
 
-* `server.ks` (PKCS12形式) が `nfast_home/kmdata/local/` に生成されます。
-* `key_jcec_my-hsm-key` (HSM物理鍵模倣ファイル) が同ディレクトリに生成されます。
-
-### 5.3 動作確認：鍵の棚卸し
+### 4.3 動作確認：CSR発行・棚卸し
 
 ```bash
+# 1. 鍵生成 (自動的にパスがリダイレクトされる)
+keytool -genkeypair -alias my-hsm-key -keyalg RSA -keysize 2048 -storetype nCipher.sworld -keystore server.ks -storepass password -keypass password -dname "CN=Test"
+
+# 2. 棚卸し確認
 nfkminfo -k
-# 出力例: Key list - 1 keys found / App jcec Name my-hsm-key
 
 ```
 
-## 5. コード構成
+## 5. テストとエビデンス生成
 
-* `src/mock_nfast_core.py`: `config.json` を読み込み、パス解決とディレクトリ管理を担う基盤クラス。
-* `src/nfast_mock_bin.py`: HSMコマンド（enquiry等）の実体。ラッパーから渡された名前で挙動を変えます。
-* `src/keytool_wrapper.py`: keytoolの引数置換と、仮想ディレクトリへの保存誘導ロジック。
-* `src/setup_mock.py`: 環境に応じたバッチファイル/シェルスクリプトの自動生成。
+本プロジェクトには、自動テストとHTMLレポート生成機能が含まれています。
 
-## 6. ライセンス
+### 5.1 準備
 
-本ツールは開発・テスト専用のモックであり、実際の暗号化機能（HSMハードウェアによる防御）は提供しません。
+`src/tests/conftest.py` を配置することで、レポートにテストの日本語説明（docstring）が表示されるようになります。
+
+### 5.2 テスト実行
+
+以下のコマンドで、詳細なエビデンスを含むHTMLレポートを生成します。
+
+```bash
+# -s オプションにより、詳細なコマンド実行ログがレポートに記録されます
+uv run pytest --html=report.html --self-contained-html -s
+
+```
+
+生成された `report.html` をブラウザで開き、**「Description」** 列や **「Show details」**（Passedをクリック）から、モックの動作ログを確認してください。
+
+## 6. コード構成
+
+* `src/mock_nfast_core.py`: 基盤クラス。パス解決とディレクトリ管理。
+* `src/nfast_mock_bin.py`: HSMコマンド実体（enquiry等）。
+* `src/keytool_wrapper.py`: keytool引数置換とパス誘導ロジック。
+* `src/setup_mock.py`: ラッパーおよび環境有効化スクリプトの生成。
+* `src/tests/`: テストコード一式。
+
+---
+
+**Note:** 本ツールは開発・テスト専用のモックであり、実際のハードウェアによるセキュリティ機能は提供しません。
