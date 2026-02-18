@@ -63,7 +63,7 @@ class TestBinaries:
         print(f"\nKey search result:\n{result.stdout}")
         
         assert "App jcec Name dummy-key" in result.stdout
-        # os.remove(dummy_key)
+        os.remove(dummy_key)
 
 # --- 3. keytool_wrapper.py のテスト ---
 class TestKeytoolWrapper:
@@ -98,7 +98,7 @@ class TestKeytoolWrapper:
         print(f"Checking for physical key file: {expected_key_path}")
         
         assert os.path.exists(expected_key_path)
-        # if os.path.exists(expected_key_path): os.remove(expected_key_path)
+        if os.path.exists(expected_key_path): os.remove(expected_key_path)
 
 # --- 4. setup_mock.py のテスト ---
 class TestSetup:
